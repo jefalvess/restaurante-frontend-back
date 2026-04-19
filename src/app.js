@@ -27,7 +27,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "restaurant-backend" });
 });
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/docs", swaggerUi.serveFiles(swaggerDocument), swaggerUi.setup(swaggerDocument));
 
 app.use("/", routes);
 app.use(errorHandler);
