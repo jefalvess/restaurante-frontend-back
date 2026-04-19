@@ -1,6 +1,6 @@
 {
   "name": "test-copit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend Node.js para sistema interno de restaurante",
   "main": "src/server.js",
   "scripts": {
