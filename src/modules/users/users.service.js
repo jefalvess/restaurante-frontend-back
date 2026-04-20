@@ -2,10 +2,17 @@ const bcrypt = require("bcryptjs");
 
 const { AppError } = require("../../common/AppError");
 const { registerLog } = require("../../common/logService");
+const cache = require("../../common/cache");
 const usersRepository = require("./users.repository");
 
 async function listUsers() {
-  return usersRepository.listUsers();
+  const cacheKey = "users:list";
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const users = await usersRepository.listUsers();
+  cache.set(cacheKey, users, 3600);
+  return users;
 }
 
 async function createUser(data) {
@@ -31,6 +38,7 @@ async function createUser(data) {
     payload: user,
     userId: null,
   });
+  cache.invalidate("users");
 
   return user;
 }
@@ -66,6 +74,7 @@ async function deactivateUser(id, currentUser) {
     payload: { active: false },
     userId: currentUser?.id || null,
   });
+  cache.invalidate("users");
 
   return user;
 }

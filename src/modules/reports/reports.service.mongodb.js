@@ -1,3 +1,4 @@
+const cache = require("../../common/cache");
 const { Order, OrderItem, Payment } = require("../../models");
 
 function parsePeriod(query) {
@@ -8,6 +9,9 @@ function parsePeriod(query) {
 
 async function salesByPeriod(query) {
   const { start, end } = parsePeriod(query);
+  const cacheKey = `reports:sales:${start.toISOString()}:${end.toISOString()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
 
   const result = await Order.aggregate([
     {
@@ -29,17 +33,23 @@ async function salesByPeriod(query) {
   const ticketAverage = stats.count ? stats.revenue / stats.count : 0;
   const cancelled = await Order.countDocuments({ status: "cancelado", createdAt: { $gte: start, $lte: end } });
 
-  return {
+  const response = {
     period: { start, end },
     totalOrders: stats.count,
     revenue: Number(stats.revenue.toFixed(2)),
     ticketAverage: Number(ticketAverage.toFixed(2)),
     cancelled,
   };
+
+  cache.set(cacheKey, response, 300);
+  return response;
 }
 
 async function topProducts(query) {
   const { start, end } = parsePeriod(query);
+  const cacheKey = `reports:topProducts:${start.toISOString()}:${end.toISOString()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
 
   const items = await OrderItem.aggregate([
     {
@@ -74,15 +84,21 @@ async function topProducts(query) {
     },
   ]);
 
-  return items.map((it) => ({
+  const response = items.map((it) => ({
     productName: it._id,
     quantity: it.quantity,
     total: Number(it.total.toFixed(2)),
   }));
+
+  cache.set(cacheKey, response, 300);
+  return response;
 }
 
 async function paymentsReport(query) {
   const { start, end } = parsePeriod(query);
+  const cacheKey = `reports:payments:${start.toISOString()}:${end.toISOString()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
 
   const payments = await Payment.aggregate([
     {
@@ -125,11 +141,16 @@ async function paymentsReport(query) {
 
   summary.total = Number(summary.total.toFixed(2));
 
-  return { period: { start, end }, summary };
+  const response = { period: { start, end }, summary };
+  cache.set(cacheKey, response, 300);
+  return response;
 }
 
 async function ordersByType(query) {
   const { start, end } = parsePeriod(query);
+  const cacheKey = `reports:ordersByType:${start.toISOString()}:${end.toISOString()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
 
   const orders = await Order.aggregate([
     {
@@ -148,6 +169,7 @@ async function ordersByType(query) {
     result[order._id] = order.count;
   });
 
+  cache.set(cacheKey, result, 300);
   return result;
 }
 

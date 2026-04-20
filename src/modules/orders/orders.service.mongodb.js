@@ -1,6 +1,7 @@
 const { AppError } = require("../../common/AppError");
 const { ORDER_STATUS_FLOW } = require("../../common/constants");
 const { registerLog } = require("../../common/logService");
+const cache = require("../../common/cache");
 const { Order, OrderItem, Product, Payment, Counter } = require("../../models");
 const repository = require("./orders.repository");
 
@@ -60,10 +61,15 @@ async function createOrder(data, userId) {
   await order.save();
 
   await registerLog({ entity: "orders", entityId: order._id.toString(), action: "create", payload: order, userId });
+  cache.invalidate("orders");
   return order;
 }
 
 async function listOpenOrders(filters = {}) {
+  const cacheKey = `orders:open:${JSON.stringify(filters)}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const query = {};
   const requestedType = filters.type || filters.tipy;
 
@@ -75,9 +81,12 @@ async function listOpenOrders(filters = {}) {
     query.type = requestedType;
   }
 
-  return Order.find(query)
+  const orders = await Order.find(query)
     .populate("items")
     .sort({ orderNumber: -1, createdAt: -1 });
+
+  cache.set(cacheKey, orders, 30);
+  return orders;
 }
 
 async function getOrderById(id) {
@@ -126,6 +135,7 @@ async function addItem(orderId, data, userId) {
     payload: { ...item.toObject(), changedPrice: Boolean(data.unitPrice) },
     userId,
   });
+  cache.invalidate("orders");
 
   return updatedOrder;
 }
@@ -158,6 +168,7 @@ async function updateItem(orderId, itemId, data, userId) {
   const updatedOrder = await recalcOrder(orderId);
 
   await registerLog({ entity: "order_items", entityId: itemId, action: "update", payload, userId });
+  cache.invalidate("orders");
   return updatedOrder;
 }
 
@@ -174,6 +185,7 @@ async function removeItem(orderId, itemId, userId) {
   const updatedOrder = await recalcOrder(orderId);
 
   await registerLog({ entity: "order_items", entityId: itemId, action: "delete", payload: item, userId });
+  cache.invalidate("orders");
   return updatedOrder;
 }
 
@@ -230,6 +242,8 @@ async function updateStatus(orderId, status, reason, userId) {
     payload: { oldStatus: order.status, status, reason },
     userId,
   });
+  cache.invalidate("orders");
+  cache.invalidate("reports");
 
   return updated;
 }
@@ -310,6 +324,8 @@ async function closeOrder(orderId, data, userId) {
     },
     userId,
   });
+  cache.invalidate("orders");
+  cache.invalidate("reports");
 
   return Order.findById(orderId).populate("items").populate("payments");
 }

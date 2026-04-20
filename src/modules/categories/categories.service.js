@@ -1,9 +1,16 @@
 const { AppError } = require("../../common/AppError");
 const { registerLog } = require("../../common/logService");
+const cache = require("../../common/cache");
 const repository = require("./categories.repository");
 
 async function listCategories() {
-  return repository.list();
+  const cacheKey = "categories:list";
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const categories = await repository.list();
+  cache.set(cacheKey, categories, 3600);
+  return categories;
 }
 
 async function createCategory(data, userId) {
@@ -14,6 +21,7 @@ async function createCategory(data, userId) {
 
   const created = await repository.create({ name: data.name, active: data.active ?? true });
   await registerLog({ entity: "categories", entityId: created.id, action: "create", payload: created, userId });
+  cache.invalidate("categories");
   return created;
 }
 
@@ -32,6 +40,7 @@ async function updateCategory(id, data, userId) {
 
   const updated = await repository.update(id, data);
   await registerLog({ entity: "categories", entityId: id, action: "update", payload: data, userId });
+  cache.invalidate("categories");
   return updated;
 }
 
@@ -43,6 +52,7 @@ async function deleteCategory(id, userId) {
 
   await repository.remove(id);
   await registerLog({ entity: "categories", entityId: id, action: "delete", payload: current, userId });
+  cache.invalidate("categories");
   return { message: "Categoria removida" };
 }
 
