@@ -1,6 +1,6 @@
 const { AppError } = require("../../common/AppError");
 const { registerLog } = require("../../common/logService");
-const { prisma } = require("../../config/prisma");
+const { Category } = require("../../models");
 const repository = require("./products.repository");
 
 async function listProducts() {
@@ -8,7 +8,7 @@ async function listProducts() {
 }
 
 async function createProduct(data, userId) {
-  const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
+  const category = await Category.findById(data.categoryId);
   if (!category) {
     throw new AppError("Categoria nao encontrada", 404);
   }
@@ -25,7 +25,7 @@ async function updateProduct(id, data, userId) {
   }
 
   if (data.categoryId) {
-    const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
+    const category = await Category.findById(data.categoryId);
     if (!category) {
       throw new AppError("Categoria nao encontrada", 404);
     }

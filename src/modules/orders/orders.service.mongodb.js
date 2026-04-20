@@ -1,14 +1,21 @@
 const { AppError } = require("../../common/AppError");
 const { ORDER_STATUS_FLOW } = require("../../common/constants");
 const { registerLog } = require("../../common/logService");
-const { Order, OrderItem, Product, Ingredient, RecipeItem, Payment } = require("../../models");
+const { Order, OrderItem, Product, Ingredient, RecipeItem, Payment, Counter } = require("../../models");
 const repository = require("./orders.repository");
 
-function generatePublicId() {
-  const now = new Date();
-  const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `PED-${ymd}-${suffix}`;
+function generatePublicId(orderNumber) {
+  return `PED-${String(orderNumber).padStart(6, "0")}`;
+}
+
+async function getNextOrderNumber() {
+  const counter = await Counter.findOneAndUpdate(
+    { key: "order_number" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  return counter.seq;
 }
 
 function calcTotals(items, discount, deliveryFee) {
@@ -35,8 +42,11 @@ async function ensureOrderEditable(order) {
 }
 
 async function createOrder(data, userId) {
+  const orderNumber = await getNextOrderNumber();
+
   const order = new Order({
-    publicId: generatePublicId(),
+    orderNumber,
+    publicId: generatePublicId(orderNumber),
     customerName: data.customerName,
     customerPhone: data.customerPhone,
     customerAddress: data.customerAddress,
@@ -53,10 +63,21 @@ async function createOrder(data, userId) {
   return order;
 }
 
-async function listOpenOrders() {
-  return Order.find({ status: { $nin: ["pago", "cancelado"] } })
+async function listOpenOrders(filters = {}) {
+  const query = {};
+  const requestedType = filters.type || filters.tipy;
+
+  if (filters.status) {
+    query.status = filters.status;
+  }
+
+  if (requestedType) {
+    query.type = requestedType;
+  }
+
+  return Order.find(query)
     .populate("items")
-    .sort({ createdAt: -1 });
+    .sort({ orderNumber: -1, createdAt: -1 });
 }
 
 async function getOrderById(id) {
@@ -79,7 +100,7 @@ async function addItem(orderId, data, userId) {
     throw new AppError("Produto nao encontrado ou inativo", 404);
   }
 
-  const unitPrice = Number(data.unitPrice ?? product.defaultPrice);
+  const unitPrice = Number(data.unitPrice ?? product.price);
   const total = Number((unitPrice * data.quantity).toFixed(2));
 
   const item = new OrderItem({

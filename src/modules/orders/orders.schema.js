@@ -26,6 +26,16 @@ const createOrderSchema = z.object({
   query: z.object({}),
 });
 
+const listOrdersSchema = z.object({
+  body: z.object({}),
+  params: z.object({}),
+  query: z.object({
+    status: z.enum(["aberto", "pago", "cancelado"]).optional(),
+    type: z.enum(["retirada", "delivery"]).optional(),
+    tipy: z.enum(["retirada", "delivery"]).optional(),
+  }),
+});
+
 const orderIdSchema = z.object({
   body: z.object({}),
   params: z.object({ id: z.string().min(1) }),
@@ -87,6 +97,7 @@ const closeOrderSchema = z.object({
 
 module.exports = {
   createOrderSchema,
+  listOrdersSchema,
   orderIdSchema,
   addItemSchema,
   updateItemSchema,

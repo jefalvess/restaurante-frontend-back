@@ -141,7 +141,6 @@ src/
 │   ├── users/             # Gestão de usuários
 │   ├── categories/        # Categorias de produtos
 │   ├── products/          # Cadastro de produtos
-│   ├── ingredients/       # Cadastro de ingredientes
 │   ├── recipes/           # Ficha técnica
 │   ├── orders/            # Pedidos (maior módulo)
 │   ├── cash/              # Gestão de caixa

@@ -19,9 +19,7 @@ const updateCategorySchema = z.object({
 });
 
 const categoryIdSchema = z.object({
-  body: z.object({}),
   params: z.object({ id: z.string().min(1) }),
-  query: z.object({}),
 });
 
 module.exports = { createCategorySchema, updateCategorySchema, categoryIdSchema };

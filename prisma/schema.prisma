@@ -83,7 +83,7 @@ model Product {
   id           String      @id @default(cuid())
   name         String
   categoryId   String
-  defaultPrice Decimal     @db.Decimal(10, 2)
+  price Decimal     @db.Decimal(10, 2)
   description  String?
   active       Boolean     @default(true)
   createdAt    DateTime    @default(now())

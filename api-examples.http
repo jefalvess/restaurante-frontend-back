@@ -78,7 +78,7 @@ Content-Type: application/json
 {
   "name": "Parmegiana",
   "categoryId": "category-id-aqui",
-  "defaultPrice": 45.50,
+  "price": 45.50,
   "description": "Frango à parmegiana com arroz, batata frita e queijo",
   "active": true
 }
@@ -89,7 +89,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "defaultPrice": 48.00
+  "price": 48.00
 }
 
 ### ===== INGREDIENTES =====

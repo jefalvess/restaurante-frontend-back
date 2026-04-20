@@ -1,7 +1,7 @@
 const { Product, OrderItem } = require("../../models");
 
 async function list() {
-  return Product.find().populate("category").sort({ name: 1 });
+  return Product.find().populate("categoryId").sort({ name: 1 });
 }
 
 async function findById(id) {
@@ -18,7 +18,7 @@ async function create(data) {
 }
 
 async function update(id, data) {
-  return Product.findByIdAndUpdate(id, data, { new: true }).populate("category");
+  return Product.findByIdAndUpdate(id, data, { new: true }).populate("categoryId");
 }
 
 async function remove(id) {

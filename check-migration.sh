@@ -71,7 +71,7 @@ echo ""
 echo "2️⃣  REPOSITÓRIOS"
 echo "============================================"
 
-repos=("auth" "users" "categories" "products" "ingredients" "recipes" "orders" "cash")
+repos=("auth" "users" "categories" "products" "recipes" "orders" "cash")
 for repo in "${repos[@]}"; do
     ((count_total++))
     repo_file="$BASE_DIR/src/modules/$repo/${repo%s}.repository.js"

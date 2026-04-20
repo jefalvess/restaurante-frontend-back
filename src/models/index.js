@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-    defaultPrice: { type: Number, required: true },
+    price: { type: Number, required: true },
     description: { type: String },
     active: { type: Boolean, default: true },
   },
@@ -58,6 +58,7 @@ const recipeItemSchema = new mongoose.Schema(
 // ===== ORDER SCHEMA =====
 const orderSchema = new mongoose.Schema(
   {
+    orderNumber: { type: Number, unique: true, sparse: true },
     publicId: { type: String, required: true, unique: true },
     customerName: { type: String },
     customerPhone: { type: String },
@@ -81,6 +82,21 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.virtual("items", {
+  ref: "OrderItem",
+  localField: "_id",
+  foreignField: "orderId",
+});
+
+orderSchema.virtual("payments", {
+  ref: "Payment",
+  localField: "_id",
+  foreignField: "orderId",
+});
+
+orderSchema.set("toJSON", { virtuals: true });
+orderSchema.set("toObject", { virtuals: true });
 
 // ===== ORDER ITEM SCHEMA =====
 const orderItemSchema = new mongoose.Schema(
@@ -150,10 +166,20 @@ const logSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ===== COUNTER SCHEMA =====
+const counterSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true, unique: true },
+    seq: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
 // Índices
 productSchema.index({ categoryId: 1, name: 1 });
 recipeItemSchema.index({ productId: 1, ingredientId: 1 }, { unique: true });
 orderSchema.index({ status: 1 });
+orderSchema.index({ orderNumber: -1 });
 orderSchema.index({ createdAt: -1 });
 orderItemSchema.index({ orderId: 1 });
 paymentSchema.index({ orderId: 1 });
@@ -172,6 +198,7 @@ const Payment = mongoose.model("Payment", paymentSchema);
 const CashRegister = mongoose.model("CashRegister", cashRegisterSchema);
 const CashMovement = mongoose.model("CashMovement", cashMovementSchema);
 const Log = mongoose.model("Log", logSchema);
+const Counter = mongoose.model("Counter", counterSchema);
 
 module.exports = {
   User,
@@ -185,4 +212,5 @@ module.exports = {
   CashRegister,
   CashMovement,
   Log,
+  Counter,
 };

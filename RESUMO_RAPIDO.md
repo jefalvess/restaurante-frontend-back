@@ -123,7 +123,7 @@ const orders = await Order.aggregate([
 ```javascript
 1. User           - { name, userName, passwordHash, role, active, timestamps }
 2. Category       - { name, active, timestamps }
-3. Product        - { name, categoryId(ref), defaultPrice, description, active, timestamps }
+3. Product        - { name, categoryId(ref), price, description, active, timestamps }
 4. Ingredient     - { name, unit(enum), cost, currentStock, minStock, timestamps }
 5. RecipeItem     - { productId(ref), ingredientId(ref), quantity, timestamps }
 6. Order          - { publicId, customer*, type(enum), status(enum), totals, timestamps }

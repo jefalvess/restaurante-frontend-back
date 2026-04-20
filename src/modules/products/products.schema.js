@@ -4,7 +4,7 @@ const createProductSchema = z.object({
   body: z.object({
     name: z.string().min(2),
     categoryId: z.string().min(1),
-    defaultPrice: z.number().positive(),
+    price: z.number().positive(),
     description: z.string().optional(),
     active: z.boolean().optional(),
   }),
@@ -16,7 +16,7 @@ const updateProductSchema = z.object({
   body: z.object({
     name: z.string().min(2).optional(),
     categoryId: z.string().min(1).optional(),
-    defaultPrice: z.number().positive().optional(),
+    price: z.number().positive().optional(),
     description: z.string().nullable().optional(),
     active: z.boolean().optional(),
   }),

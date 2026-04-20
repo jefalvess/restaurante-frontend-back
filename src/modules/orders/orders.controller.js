@@ -1,4 +1,4 @@
-const service = require("./orders.service");
+const service = require("./orders.service.mongodb");
 
 async function create(req, res, next) {
   try {
@@ -10,7 +10,7 @@ async function create(req, res, next) {
 
 async function listOpen(req, res, next) {
   try {
-    return res.json(await service.listOpenOrders());
+    return res.json(await service.listOpenOrders(req.validated.query));
   } catch (error) {
     return next(error);
   }

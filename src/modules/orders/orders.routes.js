@@ -5,6 +5,7 @@ const { validate } = require("../../middlewares/validate");
 const controller = require("./orders.controller");
 const {
   createOrderSchema,
+  listOrdersSchema,
   orderIdSchema,
   addItemSchema,
   updateItemSchema,
@@ -18,7 +19,7 @@ const router = Router();
 router.use(ensureAuth);
 
 router.post("/orders", validate(createOrderSchema), controller.create);
-router.get("/orders/open", controller.listOpen);
+router.get("/orders/open", validate(listOrdersSchema), controller.listOpen);
 router.get("/orders/:id", validate(orderIdSchema), controller.getById);
 router.post("/orders/:id/items", validate(addItemSchema), controller.addItem);
 router.put("/orders/:id/items/:itemId", validate(updateItemSchema), controller.updateItem);

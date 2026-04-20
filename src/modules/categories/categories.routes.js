@@ -10,8 +10,8 @@ const router = Router();
 router.use(ensureAuth);
 
 router.get("/categories", controller.list);
-router.post("/categories", ensureRole("admin", "gerente"), validate(createCategorySchema), controller.create);
-router.put("/categories/:id", ensureRole("admin", "gerente"), validate(updateCategorySchema), controller.update);
+router.post("/categories", ensureRole("admin"), validate(createCategorySchema), controller.create);
+router.put("/categories/:id", ensureRole("admin"), validate(updateCategorySchema), controller.update);
 router.delete("/categories/:id", ensureRole("admin"), validate(categoryIdSchema), controller.remove);
 
 module.exports = router;

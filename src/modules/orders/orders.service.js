@@ -72,7 +72,7 @@ async function addItem(orderId, data, userId) {
     throw new AppError("Produto nao encontrado ou inativo", 404);
   }
 
-  const unitPrice = Number(data.unitPrice ?? product.defaultPrice);
+  const unitPrice = Number(data.unitPrice ?? product.price);
   const total = Number((unitPrice * data.quantity).toFixed(2));
 
   const item = await repository.createItem({
