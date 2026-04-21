@@ -13,7 +13,7 @@ async function getNextOrderNumber() {
   const counter = await Counter.findOneAndUpdate(
     { key: "order_number" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true },
+    { returnDocument: "after", upsert: true },
   );
 
   return counter.seq;
@@ -235,7 +235,7 @@ async function recalcOrder(
       deliveryFee: deliveryValue,
       total: totals.total,
     },
-    { new: true },
+    { returnDocument: "after" },
   )
     .populate("items")
     .populate("payments");
@@ -261,7 +261,7 @@ async function updateStatus(orderId, status, reason, userId) {
     payload.cancelledAt = new Date();
   }
 
-  const updated = await Order.findByIdAndUpdate(orderId, payload, { new: true })
+  const updated = await Order.findByIdAndUpdate(orderId, payload, { returnDocument: "after" })
     .populate("items")
     .populate("payments");
 

@@ -23,7 +23,7 @@ async function countUsers() {
 }
 
 async function updateUser(id, data) {
-  const user = await User.findByIdAndUpdate(id, data, { new: true });
+  const user = await User.findByIdAndUpdate(id, data, { returnDocument: "after" });
   return user.toObject({ versionKey: false, transform: (doc, ret) => { delete ret.passwordHash; return ret; } });
 }
 

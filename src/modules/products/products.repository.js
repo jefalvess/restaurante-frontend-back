@@ -22,7 +22,7 @@ async function createMany(items) {
 }
 
 async function update(id, data) {
-  return Product.findByIdAndUpdate(id, data, { new: true }).populate("categoryId");
+  return Product.findByIdAndUpdate(id, data, { returnDocument: "after" }).populate("categoryId");
 }
 
 async function remove(id) {

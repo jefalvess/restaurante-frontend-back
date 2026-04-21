@@ -18,7 +18,7 @@ async function create(data) {
 }
 
 async function update(id, data) {
-  return Category.findByIdAndUpdate(id, data, { new: true });
+  return Category.findByIdAndUpdate(id, data, { returnDocument: "after" });
 }
 
 async function remove(id) {

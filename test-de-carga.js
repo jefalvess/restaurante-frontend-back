@@ -42,7 +42,7 @@ export const options = {
   scenarios: {
     carga_pedidos: {
       executor: "ramping-vus",
-      startVUs: 0,
+      startVUs: 20,
       stages: [
         { duration: "1m",  target: 20  },   // aquecimento
         { duration: "3m",  target: 50  },   // carga moderada
@@ -66,10 +66,10 @@ export const options = {
 // Configuração
 // ──────────────────────────────────────────
 const BASE_URL   = __ENV.BASE_URL   || "http://localhost:3000";
-const USERNAME   = __ENV.USERNAME   || "admin";
+const USERNAME   = __ENV.USERNAME   || "jeferson";
 const PASSWORD   = __ENV.PASSWORD   || "123456";
-const PRODUCT_ID = __ENV.PRODUCT_ID || "SUBSTITUA_PELO_ID_DO_PRODUTO";
-const PRODUCT_IDS = (__ENV.PRODUCT_IDS || "")
+const PRODUCT_ID = __ENV.PRODUCT_ID || "69e78a32f40b5fbf9512fcc5";
+const PRODUCT_IDS = (__ENV.PRODUCT_IDS || "69e78a32f40b5fbf9512fcc6,69e78a32f40b5fbf9512fcc5")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
@@ -88,6 +88,20 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function safeJson(res) {
+  if (!res || typeof res.body !== "string" || res.body.length === 0) return null;
+  try {
+    return JSON.parse(res.body);
+  } catch (_) {
+    return null;
+  }
+}
+
+function safeBodySnippet(res, maxLen = 200) {
+  if (!res || typeof res.body !== "string") return "<sem body>";
+  return res.body.substring(0, maxLen);
+}
+
 // ──────────────────────────────────────────
 // Setup: valida conectividade antes de começar
 // ──────────────────────────────────────────
@@ -97,7 +111,7 @@ export function setup() {
   }
 
   const res = http.post(
-    `${BASE_URL}/auth/login`,
+    `${BASE_URL}/login`,
     JSON.stringify({ userName: USERNAME, password: PASSWORD }),
     { headers: HEADERS_JSON }
   );
@@ -109,7 +123,8 @@ export function setup() {
     return { token: null };
   }
 
-  return { token: res.json("token") };
+  const loginData = safeJson(res);
+  return { token: loginData?.token || null };
 }
 
 // ──────────────────────────────────────────
@@ -154,19 +169,27 @@ export default function (data) {
 
   const createOk = check(createRes, {
     "pedido criado 201": (r) => r.status === 201,
-    "pedido tem _id":    (r) => r.json("_id") !== undefined,
+    "pedido tem _id":    (r) => Boolean(safeJson(r)?._id),
   });
 
   if (!createOk) {
     taxaErros.add(1);
     errosCriacao.add(1);
-    console.error(`[CREATE] ${createRes.status}: ${createRes.body.substring(0, 200)}`);
+    console.error(`[CREATE] ${createRes.status}: ${safeBodySnippet(createRes)}`);
     sleep(0.5);
     return;
   }
 
   pedidosCriados.add(1);
-  const orderId = createRes.json("_id");
+  const createdOrder = safeJson(createRes);
+  const orderId = createdOrder?._id;
+  if (!orderId) {
+    taxaErros.add(1);
+    errosCriacao.add(1);
+    console.error("[CREATE] resposta sem _id valido");
+    sleep(0.5);
+    return;
+  }
 
   // ── 3. Adicionar 3 itens ──────────────
   const itensDoPedido = PRODUCT_IDS.length > 0
@@ -200,7 +223,7 @@ export default function (data) {
     if (itemRes.status !== 200) {
       taxaErros.add(1);
       errosItens.add(1);
-      console.error(`[ITEM] ${itemRes.status}: ${itemRes.body.substring(0, 200)}`);
+      console.error(`[ITEM] ${itemRes.status}: ${safeBodySnippet(itemRes)}`);
     } else {
       itensAdicionados.add(1);
     }
