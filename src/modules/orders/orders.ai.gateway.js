@@ -15,32 +15,29 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 
 // A lista de fallback com nomes confirmados pelo seu endpoint
 const GEMINI_MODELS_FALLBACK = (
-  // --- Família 2.5 (A mais equilibrada para 2026) ---
-  "gemini-2.5-flash," + 
-  "gemini-2.5-flash-lite," +
-  "gemini-2.5-pro," +
+  // --- Família Gemini 3 / 3.1 (Os mais novos) ---
+  "gemini-3.1-pro-preview, gemini-3.1-pro-preview-customtools, gemini-3.1-flash-lite-preview, " +
+  "gemini-3-pro-preview, gemini-3-flash-preview, " +
 
-  // --- Família 3.1 (As versões Preview mais potentes) ---
-  "gemini-3.1-flash-lite-preview," +
-  "gemini-3.1-pro-preview," +
+  // --- Família Gemini 2.5 (Estáveis e Modernos) ---
+  "gemini-2.5-flash, gemini-2.5-pro, gemini-2.5-flash-lite, " +
+  "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts, " +
 
-  // --- Família 2.0 (Versões estáveis de confiança) ---
-  "gemini-2.0-flash," +
-  "gemini-2.0-flash-001," +
-  "gemini-2.0-flash-lite," +
+  // --- Família Gemini 2.0 (Confiáveis) ---
+  "gemini-2.0-flash, gemini-2.0-flash-001, gemini-2.0-flash-lite, gemini-2.0-flash-lite-001, " +
 
-  // --- Versões "Latest" (Apontam sempre para a última estável) ---
-  "gemini-flash-latest," +
-  "gemini-pro-latest," +
-  "gemini-flash-lite-latest," +
+  // --- Família Deep Research (Raciocínio Avançado) ---
+  "deep-research-max-preview-04-2026, deep-research-preview-04-2026, deep-research-pro-preview-12-2025, " +
 
-  // --- Modelos Gemma 4 (Fallback se a infraestrutura Gemini falhar) ---
-  "gemma-4-31b-it," +
-  "gemma-4-26b-a4b-it," +
-  
-  // --- Modelos Gemma 3 (Mais leves e rápidos) ---
-  "gemma-3-27b-it," +
-  "gemma-3-12b-it"
+  // --- Família Gemma 4 e 3 (Modelos Open Weights) ---
+  "gemma-4-31b-it, gemma-4-26b-a4b-it, gemma-3-27b-it, gemma-3-12b-it, gemma-3-4b-it, gemma-3-1b-it, " +
+  "gemma-3n-e4b-it, gemma-3n-e2b-it, " +
+
+  // --- Modelos Especializados (Mas que aceitam texto) ---
+  "gemini-2.5-computer-use-preview-10-2025, gemini-robotics-er-1.6-preview, gemini-robotics-er-1.5-preview, " +
+
+  // --- Versões de Atalho (Latest) ---
+  "gemini-flash-latest, gemini-pro-latest, gemini-flash-lite-latest"
 )
   .split(",")
   .map((model) => model.trim())
