@@ -8,6 +8,41 @@ function parsePeriod(query) {
   return { start, end };
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeHtml(value) {
+  return String(value)
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    .replace(/ on\w+=\"[^\"]*\"/gi, "")
+    .replace(/ on\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
+function normalizeSuggestionHtml(suggestion) {
+  const text = String(suggestion || "").trim();
+  if (!text) return "<p>Sem sugestao disponivel.</p>";
+
+  const hasHtmlTag = /<[^>]+>/.test(text);
+  if (hasHtmlTag) {
+    return sanitizeHtml(text);
+  }
+
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+}
+
 async function salesByPeriod(query) {
   const { start, end } = parsePeriod(query);
   const cacheKey = `reports:sales:${start.toISOString()}:${end.toISOString()}`;
@@ -208,6 +243,7 @@ async function purchaseSuggestions(query) {
     return {
       period: { start, end },
       suggestion: "Nenhum produto vendido no período informado para gerar sugestões.",
+      suggestionHtml: "<p>Nenhum produto vendido no período informado para gerar sugestões.</p>",
       products: [],
     };
   }
@@ -248,9 +284,10 @@ async function purchaseSuggestions(query) {
     `7) Se faltar informação exata, declarar a premissa de forma curta e seguir com estimativa prática.`,
     ``,
     `Formato de resposta (somente em português):`,
-    `- Resumo curto de estratégia (2-4 linhas).`,
-    `- Lista de compra por ingrediente no formato: Ingrediente | Qtde sugerida | Unidade | Preço unitário (R$) | Subtotal (R$) | Observação.`,
-    `- Seção final: Total estimado de compra (R$ min - R$ max).`,
+    `- Retorne SOMENTE HTML (sem markdown e sem bloco de codigo).`,
+    `- Use esta estrutura: <section>, <h3>, <p>, <table>, <thead>, <tbody>, <tr>, <th>, <td>, <strong>.`,
+    `- Inclua: resumo curto, tabela de compra por ingrediente e total estimado final (R$ min - R$ max).`,
+    `- Nao incluir estilos inline, scripts ou links externos.`,
     ``,
     `Dados de entrada (pratos vendidos no período):`,
     productLines,
@@ -258,11 +295,13 @@ async function purchaseSuggestions(query) {
 
 
   const suggestion = await requestGeminiTextPrompt({ prompt });
+  const suggestionHtml = normalizeSuggestionHtml(suggestion);
 
   return {
     period: { start, end },
     products,
     suggestion,
+    suggestionHtml,
   };
 }
 
