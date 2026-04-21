@@ -26,6 +26,30 @@ async function createProduct(data, userId) {
   return created;
 }
 
+async function createProductsBatch(products, userId) {
+  const categoryIds = [...new Set(products.map((item) => String(item.categoryId)))];
+  const categories = await Category.find({ _id: { $in: categoryIds } }).select("_id");
+  const foundIds = new Set(categories.map((item) => String(item._id)));
+
+  const missingCategoryId = categoryIds.find((id) => !foundIds.has(id));
+  if (missingCategoryId) {
+    throw new AppError(`Categoria nao encontrada: ${missingCategoryId}`, 404);
+  }
+
+  const createdProducts = await repository.createMany(products);
+
+  await registerLog({
+    entity: "products",
+    entityId: null,
+    action: "create_batch",
+    payload: { count: createdProducts.length, productIds: createdProducts.map((item) => String(item._id)) },
+    userId,
+  });
+
+  cache.invalidate("products");
+  return createdProducts;
+}
+
 async function updateProduct(id, data, userId) {
   const current = await repository.findById(id);
   if (!current) {
@@ -53,7 +77,11 @@ async function deleteProduct(id, userId) {
 
   const sold = await repository.findSoldItemByProduct(id);
   if (sold) {
-    throw new AppError("Produto ja vendido nao pode ser excluido", 409);
+    // Produto com histórico de vendas: apenas oculta (soft delete)
+    const updated = await repository.update(id, { active: false });
+    await registerLog({ entity: "products", entityId: id, action: "deactivate", payload: { reason: "sold" }, userId });
+    cache.invalidate("products");
+    return { message: "Produto desativado (possui historico de vendas)", product: updated };
   }
 
   await repository.remove(id);
@@ -63,4 +91,4 @@ async function deleteProduct(id, userId) {
   return { message: "Produto removido" };
 }
 
-module.exports = { listProducts, createProduct, updateProduct, deleteProduct };
+module.exports = { listProducts, createProduct, createProductsBatch, updateProduct, deleteProduct };

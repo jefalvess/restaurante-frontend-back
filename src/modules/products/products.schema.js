@@ -12,6 +12,22 @@ const createProductSchema = z.object({
   query: z.object({}),
 });
 
+const createProductsBatchSchema = z.object({
+  body: z.object({
+    products: z.array(
+      z.object({
+        name: z.string().min(2),
+        categoryId: z.string().min(1),
+        price: z.number().positive(),
+        description: z.string().optional(),
+        active: z.boolean().optional(),
+      })
+    ).min(1),
+  }),
+  params: z.object({}),
+  query: z.object({}),
+});
+
 const updateProductSchema = z.object({
   body: z.object({
     name: z.string().min(2).optional(),
@@ -30,4 +46,9 @@ const productIdSchema = z.object({
   query: z.object({}),
 });
 
-module.exports = { createProductSchema, updateProductSchema, productIdSchema };
+module.exports = {
+  createProductSchema,
+  createProductsBatchSchema,
+  updateProductSchema,
+  productIdSchema,
+};

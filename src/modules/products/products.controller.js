@@ -16,6 +16,14 @@ async function create(req, res, next) {
   }
 }
 
+async function createBatch(req, res, next) {
+  try {
+    return res.status(201).json(await service.createProductsBatch(req.validated.body.products, req.user.id));
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function update(req, res, next) {
   try {
     return res.json(await service.updateProduct(req.validated.params.id, req.validated.body, req.user.id));
@@ -32,4 +40,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, remove };
+module.exports = { list, create, createBatch, update, remove };

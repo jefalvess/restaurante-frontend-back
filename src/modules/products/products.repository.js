@@ -1,7 +1,7 @@
 const { Product, OrderItem } = require("../../models");
 
 async function list() {
-  return Product.find().populate("categoryId").sort({ name: 1 });
+  return Product.find().populate("categoryId").sort({ active: -1, name: 1 });
 }
 
 async function findById(id) {
@@ -17,6 +17,10 @@ async function create(data) {
   return product.save();
 }
 
+async function createMany(items) {
+  return Product.insertMany(items, { ordered: true });
+}
+
 async function update(id, data) {
   return Product.findByIdAndUpdate(id, data, { new: true }).populate("categoryId");
 }
@@ -25,4 +29,4 @@ async function remove(id) {
   return Product.findByIdAndDelete(id);
 }
 
-module.exports = { list, findById, findSoldItemByProduct, create, update, remove };
+module.exports = { list, findById, findSoldItemByProduct, create, createMany, update, remove };
