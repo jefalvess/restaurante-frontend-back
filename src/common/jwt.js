@@ -23,7 +23,7 @@ function getTokenPayload(user) {
 
 function signAccessToken(user) {
   const secret = getAccessSecret();
-  const expiresIn = process.env.JWT_EXPIRES_IN || "12h";
+  const expiresIn = process.env.JWT_EXPIRES_IN || "48h";
 
   return jwt.sign(
     getTokenPayload(user),
