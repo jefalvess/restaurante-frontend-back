@@ -1,10 +1,46 @@
 const { AppError } = require("../../common/AppError");
 
-const DEFAULT_TIMEOUT_MS = Number(process.env.VOICE_PARSE_AI_TIMEOUT_MS || 20000);
-const GEMINI_BASE_URL = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_AUDIO_TIMEOUT_MS = Number(
+  process.env.VOICE_PARSE_AI_TIMEOUT_MS || 45000,
+);
+const DEFAULT_TEXT_TIMEOUT_MS = Number(
+  process.env.TEXT_PROMPT_AI_TIMEOUT_MS || 30000,
+);
+const GEMINI_BASE_URL =
+  process.env.GEMINI_BASE_URL ||
+  "https://generativelanguage.googleapis.com/v1beta";
+
+  // O modelo principal (mais moderno e estável na sua lista)
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+// A lista de fallback com nomes confirmados pelo seu endpoint
 const GEMINI_MODELS_FALLBACK = (
-  process.env.GEMINI_MODELS_FALLBACK || "gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash-latest,gemini-1.5-flash"
+  // --- Família 2.5 (A mais equilibrada para 2026) ---
+  "gemini-2.5-flash," + 
+  "gemini-2.5-flash-lite," +
+  "gemini-2.5-pro," +
+
+  // --- Família 3.1 (As versões Preview mais potentes) ---
+  "gemini-3.1-flash-lite-preview," +
+  "gemini-3.1-pro-preview," +
+
+  // --- Família 2.0 (Versões estáveis de confiança) ---
+  "gemini-2.0-flash," +
+  "gemini-2.0-flash-001," +
+  "gemini-2.0-flash-lite," +
+
+  // --- Versões "Latest" (Apontam sempre para a última estável) ---
+  "gemini-flash-latest," +
+  "gemini-pro-latest," +
+  "gemini-flash-lite-latest," +
+
+  // --- Modelos Gemma 4 (Fallback se a infraestrutura Gemini falhar) ---
+  "gemma-4-31b-it," +
+  "gemma-4-26b-a4b-it," +
+  
+  // --- Modelos Gemma 3 (Mais leves e rápidos) ---
+  "gemma-3-27b-it," +
+  "gemma-3-12b-it"
 )
   .split(",")
   .map((model) => model.trim())
@@ -45,7 +81,7 @@ function buildOrderExtractionPrompt() {
   ].join("\n");
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function fetchWithTimeout(url, options, timeoutMs) {
   const { signal, clear } = buildAbortSignal(timeoutMs);
 
   try {
@@ -57,7 +93,7 @@ async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_TIMEOUT_MS) {
     return response;
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new AppError("Tempo limite ao processar audio", 504);
+      throw new AppError("Tempo limite ao chamar provedor de IA", 504);
     }
     throw error;
   } finally {
@@ -148,14 +184,34 @@ function buildGeminiModelCandidates() {
   });
 }
 
-async function requestGeminiGenerateContent({ apiKey, body, model }) {
-  const response = await fetchWithTimeout(`${GEMINI_BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+async function requestGeminiGenerateContent({ apiKey, body, model, timeoutMs }) {
+  let response;
+
+  try {
+    response = await fetchWithTimeout(
+      `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+      timeoutMs,
+    );
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 504) {
+      return {
+        ok: false,
+        status: 504,
+        model,
+        errorText: error.message,
+        timeout: true,
+      };
+    }
+
+    throw error;
+  }
 
   if (response.ok) {
     return { ok: true, payload: await response.json() };
@@ -170,7 +226,11 @@ async function requestGeminiGenerateContent({ apiKey, body, model }) {
   };
 }
 
-async function parseVoiceOrderAudioWithGemini({ apiKey, audioBuffer, mimeType }) {
+async function parseVoiceOrderAudioWithGemini({
+  apiKey,
+  audioBuffer,
+  mimeType,
+}) {
   const prompt = [
     buildOrderExtractionPrompt(),
     "Use o audio enviado para transcrever e preencher os campos.",
@@ -185,7 +245,12 @@ async function parseVoiceOrderAudioWithGemini({ apiKey, audioBuffer, mimeType })
 
   for (const model of modelCandidates) {
     for (const body of bodies) {
-      const result = await requestGeminiGenerateContent({ apiKey, body, model });
+      const result = await requestGeminiGenerateContent({
+        apiKey,
+        body,
+        model,
+        timeoutMs: DEFAULT_AUDIO_TIMEOUT_MS,
+      });
       if (result.ok) {
         const content = extractGeminiText(result.payload);
         return parseJsonContent(content);
@@ -204,6 +269,10 @@ async function parseVoiceOrderAudioWithGemini({ apiKey, audioBuffer, mimeType })
     response: safeErrorText,
   });
 
+  if (lastError?.status === 504) {
+    throw new AppError("Tempo limite do provedor de IA ao processar audio", 504);
+  }
+
   throw new AppError("Falha ao interpretar pedido por voz", 502);
 }
 
@@ -220,6 +289,49 @@ async function parseVoiceOrderAudio({ audioBuffer, mimeType }) {
   });
 }
 
+async function requestGeminiTextPrompt({ prompt }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new AppError("Servico de IA indisponivel", 503);
+  }
+
+  const modelCandidates = buildGeminiModelCandidates();
+  const body = {
+    generationConfig: { temperature: 0.4 },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+  };
+
+  let lastError = null;
+
+  for (const model of modelCandidates) {
+    const result = await requestGeminiGenerateContent({
+      apiKey,
+      body,
+      model,
+      timeoutMs: DEFAULT_TEXT_TIMEOUT_MS,
+    });
+    if (result.ok) {
+      return extractGeminiText(result.payload);
+    }
+    lastError = result;
+  }
+
+  const safeErrorText = String(lastError?.errorText || "").slice(0, 500);
+  // eslint-disable-next-line no-console
+  console.error("Gemini generateContent falhou (text prompt)", {
+    status: lastError?.status,
+    model: lastError?.model || GEMINI_MODEL,
+    response: safeErrorText,
+  });
+
+  if (lastError?.status === 504) {
+    throw new AppError("Tempo limite do provedor de IA", 504);
+  }
+
+  throw new AppError("Falha ao obter resposta da IA", 502);
+}
+
 module.exports = {
   parseVoiceOrderAudio,
+  requestGeminiTextPrompt,
 };

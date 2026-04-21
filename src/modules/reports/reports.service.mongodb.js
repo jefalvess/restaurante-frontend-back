@@ -1,5 +1,6 @@
 const cache = require("../../common/cache");
-const { Order, OrderItem, Payment } = require("../../models");
+const { Order, OrderItem, Payment, Product } = require("../../models");
+const { requestGeminiTextPrompt } = require("../orders/orders.ai.gateway");
 
 function parsePeriod(query) {
   const start = query.start ? new Date(query.start) : new Date(new Date().setHours(0, 0, 0, 0));
@@ -173,4 +174,96 @@ async function ordersByType(query) {
   return result;
 }
 
-module.exports = { salesByPeriod, topProducts, paymentsReport, ordersByType };
+async function purchaseSuggestions(query) {
+  const { start, end } = parsePeriod(query);
+
+  // 1. Buscar top produtos vendidos no período (agrupado por nome, igual ao topProducts)
+  const items = await OrderItem.aggregate([
+    {
+      $lookup: {
+        from: "orders",
+        localField: "orderId",
+        foreignField: "_id",
+        as: "order",
+      },
+    },
+    { $unwind: "$order" },
+    {
+      $match: {
+        "order.paidAt": { $gte: start, $lte: end },
+        "order.status": "pago",
+      },
+    },
+    {
+      $group: {
+        _id: "$productName",
+        quantity: { $sum: "$quantity" },
+      },
+    },
+    { $sort: { quantity: -1 } },
+    { $limit: 30 },
+  ]);
+
+  if (!items.length) {
+    return {
+      period: { start, end },
+      suggestion: "Nenhum produto vendido no período informado para gerar sugestões.",
+      products: [],
+    };
+  }
+
+  // 2. Buscar descrições pelo nome do produto no cadastro
+  const productNames = items.map((it) => it._id);
+  const productDocs = await Product.find({ name: { $in: productNames } }, { name: 1, description: 1 }).lean();
+  const descMap = new Map(productDocs.map((p) => [p.name, p.description || ""]));
+
+  const products = items.map((it) => ({
+    productName: it._id,
+    description: descMap.get(it._id) || "",
+    quantitySold: it.quantity,
+  }));
+
+  // 3. Montar prompt para o Gemini
+  const productLines = products
+    .map((p) => {
+      const desc = p.description ? ` — ${p.description}` : "";
+      return `- ${p.productName}${desc}: ${p.quantitySold} unidades vendidas`;
+    })
+    .join("\n");
+
+  const periodLabel = `${start.toLocaleDateString("pt-BR")} a ${end.toLocaleDateString("pt-BR")}`;
+
+  const prompt = [
+    `Você é um analista de compras de insumos para restaurante.`,
+    `Seu objetivo é transformar os pratos vendidos em uma lista de ingredientes para compra.`,
+    `Período analisado: ${periodLabel}.`,
+    ``,
+    `Regras obrigatórias:`,
+    `1) NÃO repetir no resultado os dados brutos de vendas (quantidade de pratos, ranking, etc).`,
+    `2) Inferir ingredientes usando nome e descrição dos pratos.`,
+    `3) Estimar consumo médio por prato e calcular quantidade total sugerida para compra.`,
+    `4) Incluir margem de segurança de 10% para reposição.`,
+    `5) Informar estimativa de preço unitário e custo total por ingrediente em BRL.`,
+    `6) Trazer ao final o total estimado de gasto no mercado (faixa mínima e máxima).`,
+    `7) Se faltar informação exata, declarar a premissa de forma curta e seguir com estimativa prática.`,
+    ``,
+    `Formato de resposta (somente em português):`,
+    `- Resumo curto de estratégia (2-4 linhas).`,
+    `- Lista de compra por ingrediente no formato: Ingrediente | Qtde sugerida | Unidade | Preço unitário (R$) | Subtotal (R$) | Observação.`,
+    `- Seção final: Total estimado de compra (R$ min - R$ max).`,
+    ``,
+    `Dados de entrada (pratos vendidos no período):`,
+    productLines,
+  ].join("\n");
+
+
+  const suggestion = await requestGeminiTextPrompt({ prompt });
+
+  return {
+    period: { start, end },
+    products,
+    suggestion,
+  };
+}
+
+module.exports = { salesByPeriod, topProducts, paymentsReport, ordersByType, purchaseSuggestions };

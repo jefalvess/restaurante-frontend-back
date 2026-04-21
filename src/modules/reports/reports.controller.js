@@ -32,4 +32,12 @@ async function byType(req, res, next) {
   }
 }
 
-module.exports = { sales, topProducts, payments, byType };
+async function purchaseSuggestions(req, res, next) {
+  try {
+    return res.json(await service.purchaseSuggestions(req.validated.query));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { sales, topProducts, payments, byType, purchaseSuggestions };
