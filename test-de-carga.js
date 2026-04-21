@@ -47,7 +47,7 @@ export const options = {
       executor: "ramping-vus",
       startVUs: 10,
       stages: [
-        { duration: "20m",  target: 10  },   // aquecimento
+        { duration: "60m",  target: 10  },   // aquecimento
       ],
     },
   },
